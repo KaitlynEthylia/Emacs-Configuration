@@ -1,0 +1,343 @@
+#+TITLE: Emacs Config
+#+AUTHOR: Kaitlyn~Ethylia
+#+DESCRIPTION: Highly unfinished emacs configuration
+#+PROPERTY: header-args:emacs-lisp :tangle init.el
+
+An extremely unfinished emacs setup in org mode.
+Most things aren't here yet and there are also a lot of things that need fixing
+
+* Basic Setup
+
+** Variables
+
+#+begin_src emacs-lisp
+  (setq-default
+   buffer-file-coding-system 'utf-8-unix
+   cursor-type 'bar
+   frame-inhibit-implied-resize t)
+
+  (setq
+   debug-on-error t
+   inhibit-startup-message t
+   ring-bell-function 'ignore
+   org-src-preserve-indentation t
+   display-line-numbers 'relative
+   backup-directory-alist
+     `(("." . ,(expand-file-name "backup" user-emacs-directory))))
+#+end_src
+
+** Modes
+
+#+begin_src emacs-lisp
+  (tool-bar-mode 0)
+  (menu-bar-mode 0)
+  (scroll-bar-mode 0)
+  (global-display-line-numbers-mode 1)
+
+  (dolist (mode '(term-mode-hook
+		  shell-mode-hook
+		  eshell-mode-hook
+                  mastodon-mode-hook))
+		(add-hook mode (lambda () (display-line-numbers-mode 0))))
+#+end_src
+
+** Fonts
+
+#+begin_src emacs-lisp
+  (defvar fixed-pitch-font "Cascadia Code")
+  (defvar variable-pitch-font "Roboto")
+
+  (set-face-attribute 'default nil :font fixed-pitch-font :height 100)
+  (set-face-attribute 'fixed-pitch nil :font fixed-pitch-font :height 100)
+  (set-face-attribute 'variable-pitch nil :font variable-pitch-font :height 100)
+
+  (set-face-attribute 'org-block nil :foreground nil :inherit 'fixed-pitch)
+  (set-face-attribute 'org-code nil :inherit 'fixed-pitch)
+  (set-face-attribute 'org-checkbox nil :inherit 'fixed-pitch)
+  (set-face-attribute 'org-table nil :inherit 'fixed-pitch)
+#+end_src
+
+** Package Management
+
+[[https://github.com/progfolio/elpaca][Elpaca]]
+#+begin_src emacs-lisp
+  (defvar elpaca-installer-version 0.4)
+  (defvar elpaca-directory (expand-file-name "elpaca/" user-emacs-directory))
+  (defvar elpaca-builds-directory (expand-file-name "builds/" elpaca-directory))
+  (defvar elpaca-repos-directory (expand-file-name "repos/" elpaca-directory))
+  (defvar elpaca-order '(elpaca :repo "https://github.com/progfolio/elpaca.git"
+				:ref nil
+				:files (:defaults (:exclude "extensions"))
+				:build (:not elpaca--activate-package)))
+  (let* ((repo  (expand-file-name "elpaca/" elpaca-repos-directory))
+	 (build (expand-file-name "elpaca/" elpaca-builds-directory))
+	 (order (cdr elpaca-order))
+	 (default-directory repo))
+    (add-to-list 'load-path (if (file-exists-p build) build repo))
+    (unless (file-exists-p repo)
+      (make-directory repo t)
+      (when (< emacs-major-version 28) (require 'subr-x))
+      (condition-case-unless-debug err
+	  (if-let ((buffer (pop-to-buffer-same-window "*elpaca-bootstrap*"))
+		   ((zerop (call-process "git" nil buffer t "clone"
+					 (plist-get order :repo) repo)))
+		   ((zerop (call-process "git" nil buffer t "checkout"
+					 (or (plist-get order :ref) "--"))))
+		   (emacs (concat invocation-directory invocation-name))
+		   ((zerop (call-process emacs nil buffer nil "-Q" "-L" "." "--batch"
+					 "--eval" "(byte-recompile-directory \".\" 0 'force)")))
+		   ((require 'elpaca))
+	   ((elpaca-generate-autoloads "elpaca" repo)))
+	      (kill-buffer buffer)
+	    (error "%s" (with-current-buffer buffer (buffer-string))))
+	((error) (warn "%s" err) (delete-directory repo 'recursive))))
+    (unless (require 'elpaca-autoloads nil t)
+      (require 'elpaca)
+      (elpaca-generate-autoloads "elpaca" repo)
+      (load "./elpaca-autoloads")))
+  (add-hook 'after-init-hook #'elpaca-process-queues)
+  (elpaca `(,@elpaca-order))
+#+end_src
+
+*** Use Package
+
+#+begin_src emacs-lisp
+  (elpaca elpaca-use-package
+	  (elpaca-use-package-mode)
+	  (setq elpaca-use-package-by-default t))
+  (elpaca-wait)
+#+end_src
+
+* Packages
+
+** Help Packages (Not Perminent)
+
+*** Which Key
+
+[[https://github.com/justbur/emacs-which-key][Which Key]]
+#+begin_src emacs-lisp
+  (use-package which-key
+    :init (which-key-mode 1))
+#+end_src
+
+*** Counsel
+
+[[https://github.com/abo-abo/swiper][Ivy, Swiper, Counsel]]
+#+begin_src emacs-lisp
+  (use-package counsel
+    :bind ("M-x" . counsel-M-x)
+	  ("C-x b" . counsel-ibuffer))
+#+end_src
+
+*** Ivy
+
+[[https://github.com/abo-abo/swiper][Ivy, Swiper, Counsel]]
+#+begin_src emacs-lisp
+  (use-package ivy
+    :init (ivy-mode 1))
+#+end_src
+
+*** Ivy Rich
+
+[[https://github.com/Yevgnen/ivy-rich][Ivy Rich]]
+#+begin_src emacs-lisp
+  (use-package ivy-rich
+    :init (ivy-rich-mode 1))
+#+end_src
+
+*** Helpful
+
+[[https://github.com/Wilfred/helpful][Helpful]]
+#+begin_src emacs-lisp
+  (use-package helpful
+    :custom (counsel-describe-function-function #'helpful-callable)
+	    (counsel-describe-variable-function #'helpful-variable)
+    :bind ([remap describle-function] . counsel-describe-function)
+	  ([remap describle-command] . helpful-command)
+	  ([remap describle-variable] . counsel-describe-variable)
+	  ([remap describle-key] . helpful-key))
+#+end_src
+
+** Aesthetic
+
+*** Rainbow Delimiters
+
+[[https://github.com/Fanael/rainbow-delimiters][Rainbow Delimiters]]
+#+begin_src emacs-lisp
+  (use-package rainbow-delimiters
+    :hook (prog-mode . rainbow-delimiters-mode))
+#+end_src
+
+*** Theme
+
+[[https://github.com/catppuccin/emacs][Catppuccin]]
+#+begin_src emacs-lisp
+  (use-package catppuccin-theme
+    :custom (catppuccin-flavor 'frappe)
+    :init (load-theme 'catppuccin t))
+#+end_src
+
+*** Modeline
+
+[[https://github.com/seagle0128/doom-modeline][Doom Modeline]]
+#+begin_src emacs-lisp
+  (use-package doom-modeline
+    :custom (doom-modeline-height 50)
+    :init (doom-modeline-mode 1))
+#+end_src
+
+*** Discord RPC
+
+[[https://github.com/Mstrodl/elcord][Elcord]]
+#+begin_src emacs-lisp
+  (use-package elcord
+    :init (elcord-mode 1))
+#+end_src
+
+* Org Mode
+
+** Settings
+#+begin_src emacs-lisp
+  (setq org-ellipsis " ~")
+#+end_src
+
+** Visual Fill Column
+
+[[https://codeberg.org/joostkremers/visual-fill-column][Visual Fill Column]]
+#+begin_src emacs-lisp
+  (use-package visual-fill-column
+    :custom (visual-fill-column-width 110)
+	    (visual-fill-column-center-text t))
+#+end_src
+
+** Org Present
+[[https://github.com/rlister/org-present][Org Present]]
+#+begin_src emacs-lisp
+  (use-package org-present
+    :hook (org-present-mode . (lambda ()
+            (org-display-inline-images)
+            (org-present-hide-cursor)
+	    (variable-pitch-mode 1)
+	    (visual-fill-column-mode 1)
+	    (visual-line-mode 1)
+            (display-line-numbers-mode 0)
+            (setq-local
+              header-line-format " "
+              face-remapping-alist '(
+                (org-document-title (:height 1.8 :weight bold) org-document-title)
+                (org-level-1 (:height 1.8 :weight semi-bold) org-level-1)
+                (org-level-2 (:height 1.6 :weight semi-bold) org-level-2)
+                (org-level-3 (:height 1.3 :weight semi-bold) org-level-3)
+                (org-level-4 (:height 1.1 :weight semi-bold) org-level-4)))))
+	  (org-present-mode-quit . (lambda ()
+            (org-remove-inline-images)
+            (org-present-show-cursor)
+	    (variable-pitch-mode 1)
+	    (visual-fill-column-mode 0)
+	    (visual-line-mode 0)
+            (display-line-numbers-mode 1)
+            (setq-local
+              header-line-format nil
+              face-remapping-alist nil))))
+#+end_src
+
+** Org Roam
+
+[[][Org Roam]]
+#+begin_src emacs-lisp
+
+#+end_src
+
+* Keybinds
+
+** Evil
+
+[[https://github.com/emacs-evil/evil][Evil]]
+#+begin_src emacs-lisp
+  (use-package evil
+    :init (evil-mode 1)
+    :custom (evil-want-keybinding nil)
+            (evil-undo-system 'undo-redo)
+            (evil-cross-lines t))
+#+end_src
+
+*** Evil Collection
+
+[[https://github.com/emacs-evil/evil-collection][Evil Collection]]
+#+begin_src emacs-lisp
+  (use-package evil-collection :after (evil magit)
+    :init (evil-collection-init))
+#+end_src
+
+** General
+
+[[https://github.com/noctuid/general.el][General.el]]
+#+begin_src emacs-lisp
+  (use-package general
+    :after (org-present projectile)
+    :config (general-evil-setup)
+    (general-create-definer ethy/leader
+ :states '(normal insert visual emacs dired)
+      :prefix "SPC"
+      :global-prefix "S-SPC")
+    (ethy/leader "SPC" '(execute-extended-command :wk "Open Command Line"))
+
+    (ethy/leader "p" '(projectile-command-map :wk "Projectile"))
+
+    (ethy/leader "b" '(:ignore t :wk "Buffer")
+	    "bk" '(kill-this-buffer :wk "Kill the buffer")
+	    "bo" '(next-buffer :wk "Next buffer")
+	    "ba" '(previous-buffer :wk "Previous buffer")
+	    "bf" '(switch-to-buffer :wk "Find buffer"))
+
+    (ethy/leader "o" '(:ignore t :wk "Org Present")
+            "op" '(org-present :wk "Begin presentation")
+            "oq" '(org-present-quit :wk "Quit presentation")
+            "ot" '(org-present-prev :wk "Previous slide")
+            "on" '(org-present-next :wk "Next slide")
+            "oG" '(org-present-end :wk "End of presentation")
+            "ogg" '(org-present-beginning :wk "Beginning of presentation"))
+
+    (ethy/leader "m" '(:ignore t :wk "Modes")
+            "m" '(mastodon :wk "Open mastodon client")))
+
+#+end_src
+
+* Git
+
+** Projectile
+
+[[https://github.com/bbatsov/projectile][Projectile]]
+#+begin_src emacs-lisp
+  (use-package projectile
+    :init (projectile-mode 1)
+          (when (file-directory-p "~/Projects")
+            (setq projectile ))
+    :custom (projectile-completion-system 'ivy))
+#+end_src
+
+** Magit
+
+[[https://magit.vc/][Magit]]
+#+begin_src emacs-lisp
+  (use-package magit)
+#+end_src
+
+* Fediverse
+
+** Mastodon
+
+[[https://codeberg.org/martianh/mastodon.el][Mastodon.el]]
+#+begin_src emacs-lisp
+  (use-package mastodon
+    :hook (mastodon-mode . turn-off-evil-mode)
+    :custom (mastodon-instance-url "https://tech.lgbt")
+            (mastodon-active-user "kaitlynethylia"))
+#+end_src
+
+** Matrix
+
+* EWW
+* Dired
+* Shell
+* EXWM

@@ -1,0 +1,4 @@
+*/
+*.el*
+!early-init.el
+mastodon.plstore
