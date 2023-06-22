@@ -1,9 +1,4 @@
 (require 'org)
-(setq package-enable-at-startup nil
-      org-babel-default-header-args
-      (cons '(:tangle . "yes")
-	    (assq-delete-all :tangle org-babel-default-header-args)))
-
 (defun build-init ()
   (when (equal (buffer-file-name)
 	       (expand-file-name "README.org" user-emacs-directory))
