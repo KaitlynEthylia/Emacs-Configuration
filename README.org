@@ -248,39 +248,8 @@ Most things aren't here yet and there are also a lot of things that need fixing
 
 #+begin_src emacs-lisp
   (use-package eglot
-    :hook (prog-mode . eglot))
-#+end_src
-
-** Langues
-
-*** Rust
-
-#+begin_src emacs-lisp
-
-#+end_src
-
-*** C
-
-#+begin_src emacs-lisp
-  (add-to-list 'eglot-server-programs '((c-mode c-ts-mode c++-mode c++-ts-mode) "clangd"))
-#+end_src
-
-*** Haskell
-
-#+begin_src emacs-lisp
-
-#+end_src
-
-*** Lua
-
-#+begin_src emacs-lisp
-
-#+end_src
-
-*** TS/JS
-
-#+begin_src emacs-lisp
-
+    :hook (prog-mode . eglot)
+    :init (add-to-list 'eglot-server-programs '((c-mode) "clangd")))
 #+end_src
 
 * Completion
@@ -421,7 +390,8 @@ Most things aren't here yet and there are also a lot of things that need fixing
 #+begin_src emacs-lisp
   (ethy/leader "m" '(:ignore t :wk "Modes")
     "mm" '(mastodon :wk "Open mastodon client")
-    "mp" '(org-present :wk "Begin org-present presentation"))
+    "mp" '(org-present :wk "Begin org-present presentation")
+    "mg" '(magit :wk "Begin using Magit"))
 #+end_src
 
 ** Completion
@@ -452,3 +422,4 @@ Most things aren't here yet and there are also a lot of things that need fixing
 - Nitpick at everything until i like it
 - Add more info to README
 - Reorganise everything because this organisation is a bit too scattered
+- Fix prog mode hooks
