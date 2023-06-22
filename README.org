@@ -50,69 +50,34 @@ Most things aren't here yet and there are also a lot of things that need fixing
   (set-face-attribute 'default nil :font fixed-pitch-font :height 100)
   (set-face-attribute 'fixed-pitch nil :font fixed-pitch-font :height 100)
   (set-face-attribute 'variable-pitch nil :font variable-pitch-font :height 100)
-
-  (set-face-attribute 'org-block nil :foreground nil :inherit 'fixed-pitch)
-  (set-face-attribute 'org-code nil :inherit 'fixed-pitch)
-  (set-face-attribute 'org-checkbox nil :inherit 'fixed-pitch)
-  (set-face-attribute 'org-table nil :inherit 'fixed-pitch)
-#+end_src
-
-** Package Management
-
-[[https://github.com/progfolio/elpaca][Elpaca]]
-#+begin_src emacs-lisp
-  (defvar elpaca-installer-version 0.4)
-  (defvar elpaca-directory (expand-file-name "elpaca/" user-emacs-directory))
-  (defvar elpaca-builds-directory (expand-file-name "builds/" elpaca-directory))
-  (defvar elpaca-repos-directory (expand-file-name "repos/" elpaca-directory))
-  (defvar elpaca-order '(elpaca :repo "https://github.com/progfolio/elpaca.git"
-				:ref nil
-				:files (:defaults (:exclude "extensions"))
-				:build (:not elpaca--activate-package)))
-  (let* ((repo  (expand-file-name "elpaca/" elpaca-repos-directory))
-	 (build (expand-file-name "elpaca/" elpaca-builds-directory))
-	 (order (cdr elpaca-order))
-	 (default-directory repo))
-    (add-to-list 'load-path (if (file-exists-p build) build repo))
-    (unless (file-exists-p repo)
-      (make-directory repo t)
-      (when (< emacs-major-version 28) (require 'subr-x))
-      (condition-case-unless-debug err
-	  (if-let ((buffer (pop-to-buffer-same-window "*elpaca-bootstrap*"))
-		   ((zerop (call-process "git" nil buffer t "clone"
-					 (plist-get order :repo) repo)))
-		   ((zerop (call-process "git" nil buffer t "checkout"
-					 (or (plist-get order :ref) "--"))))
-		   (emacs (concat invocation-directory invocation-name))
-		   ((zerop (call-process emacs nil buffer nil "-Q" "-L" "." "--batch"
-					 "--eval" "(byte-recompile-directory \".\" 0 'force)")))
-		   ((require 'elpaca))
-	   ((elpaca-generate-autoloads "elpaca" repo)))
-	      (kill-buffer buffer)
-	    (error "%s" (with-current-buffer buffer (buffer-string))))
-	((error) (warn "%s" err) (delete-directory repo 'recursive))))
-    (unless (require 'elpaca-autoloads nil t)
-      (require 'elpaca)
-      (elpaca-generate-autoloads "elpaca" repo)
-      (load "./elpaca-autoloads")))
-  (add-hook 'after-init-hook #'elpaca-process-queues)
-  (elpaca `(,@elpaca-order))
-#+end_src
-
-*** Use Package
-
-#+begin_src emacs-lisp
-  (elpaca elpaca-use-package
-	  (elpaca-use-package-mode)
-	  (setq elpaca-use-package-by-default t))
-  (elpaca-wait)
 #+end_src
 
 * Packages
 
-** Help Packages (Not Perminent)
+#+begin_src emacs-lisp
+  (require 'package)
+  (setq package-archives
+               '(("gnu" . "https://elpa.gnu.org/packages/")
+                 ("nongnu" . "https://elpa.nongnu.org/nongnu/")
+                 ("melpa" . "https://melpa.org/packages/")))
+  (package-initialize)
+  (unless package-archive-contents
+    (package-refresh-contents))
+#+end_src
 
-*** Which Key
+** Use Package
+
+#+begin_src emacs-lisp
+  (unless (package-installed-p 'use-package)
+    (package-install 'use-package))
+
+  (require 'use-package)
+  (setq use-package-always-ensure t)
+#+end_src
+
+* Help
+
+** Which Key
 
 [[https://github.com/justbur/emacs-which-key][Which Key]]
 #+begin_src emacs-lisp
@@ -120,32 +85,24 @@ Most things aren't here yet and there are also a lot of things that need fixing
     :init (which-key-mode 1))
 #+end_src
 
-*** Counsel
+** Vertico
 
-[[https://github.com/abo-abo/swiper][Ivy, Swiper, Counsel]]
+[[https://github.com/minad/vertico][Vertico]]
 #+begin_src emacs-lisp
-  (use-package counsel
-    :bind ("M-x" . counsel-M-x)
-	  ("C-x b" . counsel-ibuffer))
+  (use-package vertico
+    :custom (vertico-cycle t)
+    :init (vertico-mode))
 #+end_src
 
-*** Ivy
+** Marginalia
 
-[[https://github.com/abo-abo/swiper][Ivy, Swiper, Counsel]]
+[[https://github.com/minad/marginalia][Marginalia]]
 #+begin_src emacs-lisp
-  (use-package ivy
-    :init (ivy-mode 1))
+  (use-package marginalia :after vertico
+    :init (marginalia-mode))
 #+end_src
 
-*** Ivy Rich
-
-[[https://github.com/Yevgnen/ivy-rich][Ivy Rich]]
-#+begin_src emacs-lisp
-  (use-package ivy-rich
-    :init (ivy-rich-mode 1))
-#+end_src
-
-*** Helpful
+** Helpful
 
 [[https://github.com/Wilfred/helpful][Helpful]]
 #+begin_src emacs-lisp
@@ -158,9 +115,9 @@ Most things aren't here yet and there are also a lot of things that need fixing
 	  ([remap describle-key] . helpful-key))
 #+end_src
 
-** Aesthetic
+* Aesthetic
 
-*** Rainbow Delimiters
+** Rainbow Delimiters
 
 [[https://github.com/Fanael/rainbow-delimiters][Rainbow Delimiters]]
 #+begin_src emacs-lisp
@@ -168,7 +125,7 @@ Most things aren't here yet and there are also a lot of things that need fixing
     :hook (prog-mode . rainbow-delimiters-mode))
 #+end_src
 
-*** Theme
+** Theme
 
 [[https://github.com/catppuccin/emacs][Catppuccin]]
 #+begin_src emacs-lisp
@@ -177,7 +134,7 @@ Most things aren't here yet and there are also a lot of things that need fixing
     :init (load-theme 'catppuccin t))
 #+end_src
 
-*** Modeline
+** Modeline
 
 [[https://github.com/seagle0128/doom-modeline][Doom Modeline]]
 #+begin_src emacs-lisp
@@ -186,7 +143,7 @@ Most things aren't here yet and there are also a lot of things that need fixing
     :init (doom-modeline-mode 1))
 #+end_src
 
-*** Discord RPC
+** Discord RPC
 
 [[https://github.com/Mstrodl/elcord][Elcord]]
 #+begin_src emacs-lisp
@@ -194,9 +151,17 @@ Most things aren't here yet and there are also a lot of things that need fixing
     :init (elcord-mode 1))
 #+end_src
 
+** Nerd Icons
+
+[[https://github.com/rainstormstudio/nerd-icons.el][Nerd Icons]]
+#+begin_src emacs-lisp
+  (use-package nerd-icons)
+#+end_src
+
 * Org Mode
 
 ** Settings
+
 #+begin_src emacs-lisp
   (setq org-ellipsis " ~")
 #+end_src
@@ -211,6 +176,7 @@ Most things aren't here yet and there are also a lot of things that need fixing
 #+end_src
 
 ** Org Present
+
 [[https://github.com/rlister/org-present][Org Present]]
 #+begin_src emacs-lisp
   (use-package org-present
@@ -239,69 +205,14 @@ Most things aren't here yet and there are also a lot of things that need fixing
             (setq-local
               header-line-format nil
               face-remapping-alist nil))))
+
+  (set-face-attribute 'org-block nil :foreground nil :inherit 'fixed-pitch)
+  (set-face-attribute 'org-code nil :inherit 'fixed-pitch)
+  (set-face-attribute 'org-checkbox nil :inherit 'fixed-pitch)
+  (set-face-attribute 'org-table nil :inherit 'fixed-pitch)
 #+end_src
 
 ** Org Roam
-
-[[][Org Roam]]
-#+begin_src emacs-lisp
-
-#+end_src
-
-* Keybinds
-
-** Evil
-
-[[https://github.com/emacs-evil/evil][Evil]]
-#+begin_src emacs-lisp
-  (use-package evil
-    :init (evil-mode 1)
-    :custom (evil-want-keybinding nil)
-            (evil-undo-system 'undo-redo)
-            (evil-cross-lines t))
-#+end_src
-
-*** Evil Collection
-
-[[https://github.com/emacs-evil/evil-collection][Evil Collection]]
-#+begin_src emacs-lisp
-  (use-package evil-collection :after (evil magit)
-    :init (evil-collection-init))
-#+end_src
-
-** General
-
-[[https://github.com/noctuid/general.el][General.el]]
-#+begin_src emacs-lisp
-  (use-package general
-    :after (org-present projectile)
-    :config (general-evil-setup)
-    (general-create-definer ethy/leader
- :states '(normal insert visual emacs dired)
-      :prefix "SPC"
-      :global-prefix "S-SPC")
-    (ethy/leader "SPC" '(execute-extended-command :wk "Open Command Line"))
-
-    (ethy/leader "p" '(projectile-command-map :wk "Projectile"))
-
-    (ethy/leader "b" '(:ignore t :wk "Buffer")
-	    "bk" '(kill-this-buffer :wk "Kill the buffer")
-	    "bo" '(next-buffer :wk "Next buffer")
-	    "ba" '(previous-buffer :wk "Previous buffer")
-	    "bf" '(switch-to-buffer :wk "Find buffer"))
-
-    (ethy/leader "o" '(:ignore t :wk "Org Present")
-            "op" '(org-present :wk "Begin presentation")
-            "oq" '(org-present-quit :wk "Quit presentation")
-            "ot" '(org-present-prev :wk "Previous slide")
-            "on" '(org-present-next :wk "Next slide")
-            "oG" '(org-present-end :wk "End of presentation")
-            "ogg" '(org-present-beginning :wk "Beginning of presentation"))
-
-    (ethy/leader "m" '(:ignore t :wk "Modes")
-            "m" '(mastodon :wk "Open mastodon client")))
-
-#+end_src
 
 * Git
 
@@ -310,10 +221,7 @@ Most things aren't here yet and there are also a lot of things that need fixing
 [[https://github.com/bbatsov/projectile][Projectile]]
 #+begin_src emacs-lisp
   (use-package projectile
-    :init (projectile-mode 1)
-          (when (file-directory-p "~/Projects")
-            (setq projectile ))
-    :custom (projectile-completion-system 'ivy))
+    :init (projectile-mode))
 #+end_src
 
 ** Magit
@@ -330,14 +238,217 @@ Most things aren't here yet and there are also a lot of things that need fixing
 [[https://codeberg.org/martianh/mastodon.el][Mastodon.el]]
 #+begin_src emacs-lisp
   (use-package mastodon
-    :hook (mastodon-mode . turn-off-evil-mode)
     :custom (mastodon-instance-url "https://tech.lgbt")
             (mastodon-active-user "kaitlynethylia"))
 #+end_src
 
-** Matrix
+* LSP
 
-* EWW
-* Dired
-* Shell
-* EXWM
+** Eglot
+
+#+begin_src emacs-lisp
+  (use-package eglot
+    :hook (prog-mode . eglot))
+#+end_src
+
+** Langues
+
+*** Rust
+
+#+begin_src emacs-lisp
+
+#+end_src
+
+*** C
+
+#+begin_src emacs-lisp
+  (add-to-list 'eglot-server-programs '((c-mode c-ts-mode c++-mode c++-ts-mode) "clangd"))
+#+end_src
+
+*** Haskell
+
+#+begin_src emacs-lisp
+
+#+end_src
+
+*** Lua
+
+#+begin_src emacs-lisp
+
+#+end_src
+
+*** TS/JS
+
+#+begin_src emacs-lisp
+
+#+end_src
+
+* Completion
+
+** Dabbrev
+
+#+begin_src emacs-lisp
+  (use-package dabbrev)
+#+end_src
+
+** Orderless
+
+[[https://github.com/oantolin/orderless][Orderless]]
+#+begin_src emacs-lisp
+  (use-package orderless
+    :custom (completion-styles '(orderless basic))
+            (completion-category-overrides '((file (styles basic partial-completion)))))
+#+end_src
+
+** Corfu
+
+[[https://github.com/minad/corfu][Corfu]]
+#+begin_src emacs-lisp
+  (use-package corfu
+    :custom (corfu-cycle t)
+            (corfu-seperator ?\s)
+    :hook (prog-mode . corfu-mode))
+#+end_src
+
+** Kind Icon
+
+[[https://github.com/jdtsmith/kind-icon][Kind Icon]]
+#+begin_src emacs-lisp
+  (use-package kind-icon :after corfu
+    :custom (kind-icon-default-face 'corfu-default)
+	    (kind-icon-use-icons nil)
+	    (kind-icon-mapping
+	     `((array ,(nerd-icons-codicon "nf-cod-symbol_array" :face font-lock-type-face))
+               (boolean ,(nerd-icons-codicon "nf-cod-symbol_boolean" :face font-lock-builtin-face))
+               (class ,(nerd-icons-codicon "nf-cod-symbol_class" :face font-lock-type-face))
+               (color ,(nerd-icons-codicon "nf-cod-symbol_color" :face success))
+               (command ,(nerd-icons-codicon "nf-cod-terminal" :face default))
+               (constant ,(nerd-icons-codicon "nf-cod-symbol_constant" :face font-lock-constant-face))
+               (constructor ,(nerd-icons-codicon "nf-cod-triangle_right" :face font-lock-function-name-face))
+               (enummember ,(nerd-icons-codicon "nf-cod-symbol_enum_member" :face font-lock-builtin-face))
+               (enum-member ,(nerd-icons-codicon "nf-cod-symbol_enum_member" :face font-lock-builtin-face))
+	       (enum ,(nerd-icons-codicon "nf-cod-symbol_enum" :face font-lock-builtin-face))
+               (event ,(nerd-icons-codicon "nf-cod-symbol_event" :face font-lock-warning-face))
+               (field ,(nerd-icons-codicon "nf-cod-symbol_field" :face font-lock-variable-name-face))
+               (file ,(nerd-icons-codicon "nf-cod-symbol_file" :face font-lock-string-face))
+               (folder ,(nerd-icons-codicon "nf-cod-folder" :face font-lock-doc-face))
+               (interface ,(nerd-icons-codicon "nf-cod-symbol_interface" :face font-lock-type-face))
+               (keyword ,(nerd-icons-codicon "nf-cod-symbol_keyword" :face font-lock-keyword-face))
+               (macro ,(nerd-icons-codicon "nf-cod-symbol_misc" :face font-lock-keyword-face))
+               (magic ,(nerd-icons-codicon "nf-cod-wand" :face font-lock-builtin-face))
+               (method ,(nerd-icons-codicon "nf-cod-symbol_method" :face font-lock-function-name-face))
+               (function ,(nerd-icons-codicon "nf-cod-symbol_method" :face font-lock-function-name-face))
+               (module ,(nerd-icons-codicon "nf-cod-file_submodule" :face font-lock-preprocessor-face))
+               (numeric ,(nerd-icons-codicon "nf-cod-symbol_numeric" :face font-lock-builtin-face))
+               (operator ,(nerd-icons-codicon "nf-cod-symbol_operator" :face font-lock-comment-delimiter-face))
+               (param ,(nerd-icons-codicon "nf-cod-symbol_parameter" :face default))
+               (property ,(nerd-icons-codicon "nf-cod-symbol_property" :face font-lock-variable-name-face))
+               (reference ,(nerd-icons-codicon "nf-cod-references" :face font-lock-variable-name-face))
+               (snippet ,(nerd-icons-codicon "nf-cod-symbol_snippet" :face font-lock-string-face))
+               (string ,(nerd-icons-codicon "nf-cod-symbol_string" :face font-lock-string-face))
+               (struct ,(nerd-icons-codicon "nf-cod-symbol_structure" :face font-lock-variable-name-face))
+               (text ,(nerd-icons-codicon "nf-cod-text_size" :face font-lock-doc-face))
+               (typeparameter ,(nerd-icons-codicon "nf-cod-list_unordered" :face font-lock-type-face))
+               (type-parameter ,(nerd-icons-codicon "nf-cod-list_unordered" :face font-lock-type-face))
+               (unit ,(nerd-icons-codicon "nf-cod-symbol_ruler" :face font-lock-constant-face))
+               (value ,(nerd-icons-codicon "nf-cod-symbol_field" :face font-lock-builtin-face))
+               (variable ,(nerd-icons-codicon "nf-cod-symbol_variable" :face font-lock-variable-name-face))
+               (t ,(nerd-icons-codicon "nf-cod-code" :face font-lock-warning-face))))
+    :config (add-to-list 'corfu-margin-formatters #'kind-icon-margin-formatter))
+#+end_src
+
+** Cape
+
+[[https://github.com/minad/cape][Cape]]
+#+begin_src emacs-lisp
+  (use-package cape
+    :init (dolist (func '(cape-dabbrev
+			  cape-file
+			  cape-elisp-block))
+	    (add-to-list 'completion-at-point-functions func)))
+#+end_src
+
+* TODO EWW
+
+* TODO Dired
+
+* TODO Shell
+
+* Keybinds
+
+** General
+
+[[https://github.com/noctuid/general.el][General.el]]
+#+begin_src emacs-lisp
+  (use-package general
+    :config
+    (general-create-definer ethy/leader
+      :prefix "S-SPC"))
+#+end_src
+
+** Keymaps
+
+#+begin_src emacs-lisp
+  (ethy/leader "SPC" '(execute-extended-command :wk "Open Command Line"))
+  (ethy/leader "p" '(projectile-command-map :wk "Projectile"))
+  (ethy/leader "l" '(lsp-command-map :wk "LSP Mode"))
+#+end_src
+
+** Buffer
+
+#+begin_src emacs-lisp
+  (ethy/leader "b" '(:ignore t :wk "Buffer")
+    "bk" '(kill-this-buffer :wk "Kill the buffer")
+    "bo" '(next-buffer :wk "Next buffer")
+    "ba" '(previous-buffer :wk "Previous buffer")
+    "bfs" '(switch-to-buffer :wk "Find buffer"))
+#+end_src
+
+** Org Present
+
+#+begin_src emacs-lisp
+  (ethy/leader "o" '(:ignore t :wk "Org Present")
+    "op" '(org-present :wk "Begin presentation")
+    "oq" '(org-present-quit :wk "Quit presentation")
+    "ot" '(org-present-prev :wk "Previous slide")
+    "on" '(org-present-next :wk "Next slide")
+    "oG" '(org-present-end :wk "End of presentation")
+    "ogg" '(org-present-beginning :wk "Beginning of presentation"))
+#+end_src
+
+** Modes
+
+#+begin_src emacs-lisp
+  (ethy/leader "m" '(:ignore t :wk "Modes")
+    "mm" '(mastodon :wk "Open mastodon client")
+    "mp" '(org-present :wk "Begin org-present presentation"))
+#+end_src
+
+** Completion
+
+#+begin_src emacs-lisp
+  (ethy/leader "TAB" '(:ignore t :wk "Completion")
+    "TAB p" '(completion-at-point :wk "Point Completion")
+    "TAB t" '(complete-tag :wk "Tag Completion")
+    "TAB d" '(cape-dabbrev :wk "Dabbrev Completion")
+    "TAB f" '(cape-history :wk "History Completion")
+    "TAB h" '(cape-file :wk "File Completion")
+    "TAB k" '(cape-keyword :wk "Keyword Completion")
+    "TAB s" '(cape-symbol :wk "Symbol Completion")
+    "TAB l" '(cape-line :wk "Line Completion"))
+#+end_src
+
+* TODO
+- Properly bind Helpful commands
+- Add Matrix fedi client
+- Set up Org Roam
+- Set per-language themes
+- Fix nerd icons in corfu
+- Embark?
+- Emacsclient?
+- Project.el?
+- Make this readme actually any good
+- Fix C-Backspace (the default is so annoying)
+- Nitpick at everything until i like it
+- Add more info to README
+- Reorganise everything because this organisation is a bit too scattered
